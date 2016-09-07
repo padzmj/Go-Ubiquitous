@@ -40,6 +40,7 @@ import com.example.android.sunshine.app.data.WeatherContract;
 import com.example.android.sunshine.app.muzei.WeatherMuzeiSource;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.wearable.Asset;
 import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.PutDataMapRequest;
 import com.google.android.gms.wearable.PutDataRequest;
@@ -50,6 +51,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -110,9 +112,7 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
     private static final String KEY_UUID = "uuid";
     private static final String KEY_LOW = "low";
     private static final String KEY_HIGH = "high";
-    private static final String KEY_WEATHER_ID = "weatherID";
-
-    String mWeatherLow, mWeatherHigh;
+    private static final String KEY_WEATHER_ICON = "weatherIcon";
 
 
     public SunshineSyncAdapter(Context context, boolean autoInitialize) {
@@ -415,16 +415,19 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
         String tempHigh = Utility.formatTemperature(getContext(), high);
         String tempLow = Utility.formatTemperature(getContext(), low);
 
+        Bitmap bitmap = BitmapFactory.decodeResource(getContext().getResources(), Utility.getArtResourceForWeatherCondition(weatherId));
+        Asset asset = createAssetFromBitmap(bitmap);
+
         PutDataMapRequest putDataMapRequest = PutDataMapRequest.create(WEATHER_PATH);
 
         putDataMapRequest.getDataMap().putString(KEY_UUID, UUID.randomUUID().toString());
         putDataMapRequest.getDataMap().putString(KEY_HIGH, tempHigh);
         putDataMapRequest.getDataMap().putString(KEY_LOW, tempLow);
-        putDataMapRequest.getDataMap().putInt(KEY_WEATHER_ID, weatherId);
+        putDataMapRequest.getDataMap().putAsset(KEY_WEATHER_ICON, asset);
 
         PutDataRequest request = putDataMapRequest.asPutDataRequest();
 
-        Log.d(LOG_TAG, "High Temp:" + tempHigh + ", Low Temp:" + tempLow + ", ID: " + weatherId);
+        Log.d(LOG_TAG, "High Temp:" + tempHigh + ", Low Temp:" + tempLow + ", IconID: " + weatherId);
 
 
         Wearable.DataApi.putDataItem(mGoogleApiClient, request)
@@ -440,6 +443,11 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
                 });
     }
 
+    private static Asset createAssetFromBitmap(Bitmap bitmap) {
+        final ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteStream);
+        return Asset.createFromBytes(byteStream.toByteArray());
+    }
 
     private void updateWidgets() {
         Context context = getContext();
